@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poetry Quote Generator</title>
-    <!-- TensorFlow.js and Universal Sentence Encoder -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@1.3.3"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 
@@ -407,69 +404,52 @@
         // Track shown poems per query to avoid repetition
         const shownPoemsPerQuery = {};
 
-        // AI/ML variables
-        let model = null;
-        let modelLoaded = false;
-
-        // Initialize the Universal Sentence Encoder model
-        async function loadModel() {
-            try {
-                model = await use.load();
-                modelLoaded = true;
-                console.log('✅ AI model loaded for semantic ranking');
-                return true;
-            } catch (error) {
-                console.error('Failed to load AI model:', error);
-                modelLoaded = false;
-                return false;
-            }
-        }
-
-        // Calculate cosine similarity between two vectors
-        function cosineSimilarity(a, b) {
-            const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
-            const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-            const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-            return dotProduct / (magnitudeA * magnitudeB);
-        }
-
-        // Rank poems by semantic similarity to query
-        async function rankPoemsBySimilarity(query, poems) {
-            if (!modelLoaded || !model || poems.length === 0) {
-                return poems;
+        // Rank poems by thematic relevance using Claude AI
+        async function rankPoemsByRelevance(query, poems) {
+            if (poems.length === 0) {
+                return [];
             }
 
             try {
-                // Create text representations of poems (first 10 lines for performance)
-                const poemTexts = poems.map(poem => {
-                    const excerpt = poem.lines.slice(0, 10).join(' ');
-                    return `${poem.title} ${excerpt}`;
+                console.log(`🤖 Sending ${poems.length} poems to Claude for thematic analysis...`);
+
+                const response = await fetch('/.netlify/functions/rank-poems', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query,
+                        poems: poems.slice(0, 10) // Limit to top 10 to save tokens
+                    })
                 });
 
-                // Get embeddings
-                const queryEmbedding = await model.embed([query]);
-                const poemEmbeddings = await model.embed(poemTexts);
+                if (!response.ok) {
+                    throw new Error(`Ranking failed: ${response.status}`);
+                }
 
-                const queryVector = await queryEmbedding.array();
-                const poemVectors = await poemEmbeddings.array();
+                const data = await response.json();
+                const { rankings } = data;
 
-                // Calculate similarity scores
-                const rankedPoems = poems.map((poem, index) => ({
-                    poem: poem,
-                    similarity: cosineSimilarity(queryVector[0], poemVectors[index])
+                // Map rankings back to poems with relevance scores
+                const rankedPoems = rankings.map(ranking => ({
+                    poem: poems[ranking.index],
+                    similarity: ranking.relevance,
+                    reason: ranking.reason
                 }));
 
-                // Sort by similarity (highest first)
-                rankedPoems.sort((a, b) => b.similarity - a.similarity);
+                console.log(`🎯 Top match: "${rankedPoems[0].poem.title}" (${(rankedPoems[0].similarity * 100).toFixed(1)}% relevant) - ${rankedPoems[0].reason}`);
 
-                console.log(`🎯 Top match: "${rankedPoems[0].poem.title}" (${(rankedPoems[0].similarity * 100).toFixed(1)}% relevant)`);
-
-                // Return objects with both poem and similarity score
                 return rankedPoems;
 
             } catch (error) {
-                console.error('Semantic ranking error:', error);
-                return poems;
+                console.error('Claude ranking error:', error);
+                // Fallback: return poems with no ranking
+                return poems.map(poem => ({
+                    poem: poem,
+                    similarity: null,
+                    reason: 'Ranking unavailable'
+                }));
             }
         }
 
@@ -545,8 +525,8 @@
                         continue; // Try next keyword
                     }
 
-                    // Return full poems (limit to 15 for performance)
-                    const formattedPoems = data.slice(0, 15).map(poem => ({
+                    // Return full poems (limit to 50 for better Claude ranking)
+                    const formattedPoems = data.slice(0, 50).map(poem => ({
                         title: poem.title,
                         author: poem.author,
                         lines: poem.lines,
@@ -649,10 +629,11 @@
                         shownPoemsPerQuery[theme] = new Set();
                     }
 
-                    // Step 2: Rank by semantic similarity if AI is loaded
-                    if (modelLoaded) {
-                        showLoading('Ranking poems by relevance...');
-                        const rankedPoems = await rankPoemsBySimilarity(theme, poems);
+                    // Step 2: Rank by thematic relevance using Claude
+                    showLoading('Analyzing poems for thematic relevance...');
+                    const rankedPoems = await rankPoemsByRelevance(theme, poems);
+
+                    if (rankedPoems.length > 0) {
 
                         // Find the first poem that hasn't been shown yet
                         let selectedPoem = null;
@@ -675,9 +656,7 @@
 
                         displayPoem(selectedPoem.poem, selectedPoem.similarity);
                     } else {
-                        // Without AI, show random
-                        const randomPoem = getRandomPoem(poems);
-                        displayPoem(randomPoem);
+                        displayNoMatch(theme);
                     }
                 } else {
                     displayNoMatch(theme);
@@ -705,15 +684,10 @@
             themeInput.select();
         });
 
-        // Load AI model on page load
-        window.addEventListener('load', async () => {
-            quoteContent.innerHTML = '<div class="loading">Loading AI model for smarter search...<br><small>(one-time, ~5MB)</small></div>';
-            quoteContainer.classList.add('show');
-
-            // Load the model
-            await loadModel();
-
+        // Show ready message on page load
+        window.addEventListener('load', () => {
             quoteContent.innerHTML = '<div class="loading">✨ Ready! Enter a theme above to discover beautiful classic poetry!</div>';
+            quoteContainer.classList.add('show');
         });
     </script>
 </body>
