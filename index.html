@@ -373,6 +373,127 @@
         .quote-container::-webkit-scrollbar-thumb:hover {
             background: #6b4d2e;
         }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            .container {
+                padding: 30px 20px;
+                border-width: 2px;
+                box-shadow:
+                    0 0 0 1px #d4c4a8,
+                    0 0 0 4px #f9f6f0,
+                    0 0 0 5px #8b6340,
+                    0 10px 30px rgba(0, 0, 0, 0.5),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            }
+
+            .container::before {
+                top: 12px;
+                font-size: 1.5em;
+            }
+
+            h1 {
+                font-size: 2em;
+                margin-bottom: 10px;
+            }
+
+            h1::before,
+            h1::after {
+                font-size: 0.6em;
+            }
+
+            .input-group {
+                margin-bottom: 20px;
+            }
+
+            label {
+                font-size: 1em;
+            }
+
+            input {
+                font-size: 1em;
+                padding: 12px 15px;
+            }
+
+            button {
+                font-size: 1.1em;
+                padding: 14px 30px;
+            }
+
+            .quote-container {
+                padding: 20px 15px;
+                margin-top: 25px;
+            }
+
+            .poem-title {
+                font-size: 1.4em;
+            }
+
+            .poem-author {
+                font-size: 1em;
+                margin-bottom: 20px;
+            }
+
+            .poem-text {
+                font-size: 1em;
+                line-height: 1.8;
+                padding: 15px 10px;
+                border-left-width: 2px;
+            }
+
+            .source-label {
+                font-size: 0.85em;
+                margin-top: 20px;
+                padding-top: 15px;
+            }
+
+            .relevancy-score {
+                font-size: 0.8em;
+                padding: 6px 12px;
+                margin-top: 12px;
+            }
+
+            .loading-fleuron {
+                font-size: 2.5em;
+            }
+
+            .loading-message {
+                font-size: 1em;
+            }
+
+            .no-match {
+                font-size: 1em;
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 15px 8px;
+            }
+
+            .container {
+                padding: 25px 15px;
+            }
+
+            h1 {
+                font-size: 1.6em;
+            }
+
+            .poem-text {
+                font-size: 0.95em;
+                padding: 12px 8px;
+            }
+
+            button {
+                font-size: 1em;
+                padding: 12px 25px;
+            }
+        }
     </style>
 </head>
 <body>
