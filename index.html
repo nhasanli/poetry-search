@@ -183,6 +183,23 @@
             position: relative;
         }
 
+        #quoteContent {
+            transition: opacity 0.3s ease;
+        }
+
+        .fade-transition {
+            animation: contentFade 0.3s ease;
+        }
+
+        @keyframes contentFade {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
         .quote-container::before {
             content: '〰';
             position: absolute;
@@ -277,6 +294,18 @@
             opacity: 0.6;
         }
 
+        .relevancy-score {
+            text-align: center;
+            color: #6b4d2e;
+            font-size: 0.85em;
+            margin-top: 15px;
+            padding: 8px 15px;
+            background: rgba(139, 99, 64, 0.08);
+            border-radius: 3px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
         .no-match {
             text-align: center;
             color: #8b3a3a;
@@ -289,10 +318,44 @@
         .loading {
             text-align: center;
             color: #6b4d2e;
+            padding: 40px 30px;
+            line-height: 1.6;
+        }
+
+        .loading-fleuron {
+            font-size: 3em;
+            color: #8b6340;
+            margin-bottom: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .loading-message {
             font-size: 1.2em;
             font-style: italic;
-            padding: 30px;
-            line-height: 1.6;
+            color: #6b4d2e;
+            margin-top: 15px;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.4;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: linear-gradient(135deg, #998675, #7a6a5a);
+        }
+
+        input:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
 
         /* Custom scrollbar for poem container */
@@ -340,6 +403,9 @@
         // Cache for API results to avoid repeated calls
         const apiCache = {};
         const synonymCache = {};
+
+        // Track shown poems per query to avoid repetition
+        const shownPoemsPerQuery = {};
 
         // AI/ML variables
         let model = null;
@@ -398,7 +464,8 @@
 
                 console.log(`🎯 Top match: "${rankedPoems[0].poem.title}" (${(rankedPoems[0].similarity * 100).toFixed(1)}% relevant)`);
 
-                return rankedPoems.map(r => r.poem);
+                // Return objects with both poem and similarity score
+                return rankedPoems;
 
             } catch (error) {
                 console.error('Semantic ranking error:', error);
@@ -459,6 +526,9 @@
             // Generate synonyms and related terms using Claude AI
             const keywords = await generateSynonyms(userInput);
 
+            // Update loading message
+            showLoading('Searching classic poetry...');
+
             // Try searching with individual keywords
             for (const keyword of keywords) {
                 try {
@@ -502,15 +572,23 @@
             return poems[randomIndex];
         }
 
-        function displayPoem(poem) {
+        function displayPoem(poem, similarity = null) {
             // Format poem lines
             const poemLines = poem.lines.join('\n');
+
+            // Build relevancy footer if similarity score is provided
+            let relevancyFooter = '';
+            if (similarity !== null) {
+                const percentage = (similarity * 100).toFixed(1);
+                relevancyFooter = `<div class="relevancy-score">Relevance: ${percentage}%</div>`;
+            }
 
             quoteContent.innerHTML = `
                 <div class="poem-title">${poem.title}</div>
                 <div class="poem-author">by ${poem.author}</div>
                 <div class="poem-text">${poemLines}</div>
                 <div class="source-label">${poem.linecount} lines</div>
+                ${relevancyFooter}
             `;
             quoteContainer.classList.add('show');
 
@@ -527,14 +605,26 @@
             quoteContainer.classList.add('show');
         }
 
+        function showLoading(message) {
+            quoteContent.innerHTML = `
+                <div class="loading">
+                    <div class="loading-fleuron">❦</div>
+                    <div class="loading-message">${message}</div>
+                </div>
+            `;
+            quoteContainer.classList.add('show');
+        }
+
+        function setFormEnabled(enabled) {
+            themeInput.disabled = !enabled;
+            generateBtn.disabled = !enabled;
+        }
+
         async function generatePoem() {
             const theme = themeInput.value.trim();
 
             // Reset button text
             generateBtn.textContent = 'Find Poem';
-
-            quoteContent.innerHTML = '<div class="loading">Searching poetry...</div>';
-            quoteContainer.classList.add('show');
 
             // Always search PoetryDB
             if (!theme) {
@@ -544,24 +634,57 @@
                 return;
             }
 
-            quoteContent.innerHTML = '<div class="loading">Searching classic poetry...</div>';
+            // Disable form during search
+            setFormEnabled(false);
 
-            let poems = await searchPoetryDB(theme);
+            try {
+                // Step 1: Generate synonyms
+                showLoading('Generating search terms...');
 
-            if (poems && poems.length > 0) {
-                // If AI model is loaded, rank by semantic similarity
-                if (modelLoaded) {
-                    quoteContent.innerHTML = '<div class="loading">Using AI to find the best match...</div>';
-                    poems = await rankPoemsBySimilarity(theme, poems);
-                    // Take the top match
-                    displayPoem(poems[0]);
+                let poems = await searchPoetryDB(theme);
+
+                if (poems && poems.length > 0) {
+                    // Initialize shown poems tracker for this query
+                    if (!shownPoemsPerQuery[theme]) {
+                        shownPoemsPerQuery[theme] = new Set();
+                    }
+
+                    // Step 2: Rank by semantic similarity if AI is loaded
+                    if (modelLoaded) {
+                        showLoading('Ranking poems by relevance...');
+                        const rankedPoems = await rankPoemsBySimilarity(theme, poems);
+
+                        // Find the first poem that hasn't been shown yet
+                        let selectedPoem = null;
+                        for (const item of rankedPoems) {
+                            const poemKey = `${item.poem.title}|${item.poem.author}`;
+                            if (!shownPoemsPerQuery[theme].has(poemKey)) {
+                                selectedPoem = item;
+                                shownPoemsPerQuery[theme].add(poemKey);
+                                break;
+                            }
+                        }
+
+                        // If all poems have been shown, reset and start over
+                        if (!selectedPoem) {
+                            shownPoemsPerQuery[theme].clear();
+                            selectedPoem = rankedPoems[0];
+                            const poemKey = `${selectedPoem.poem.title}|${selectedPoem.poem.author}`;
+                            shownPoemsPerQuery[theme].add(poemKey);
+                        }
+
+                        displayPoem(selectedPoem.poem, selectedPoem.similarity);
+                    } else {
+                        // Without AI, show random
+                        const randomPoem = getRandomPoem(poems);
+                        displayPoem(randomPoem);
+                    }
                 } else {
-                    // Without AI, show random
-                    const randomPoem = getRandomPoem(poems);
-                    displayPoem(randomPoem);
+                    displayNoMatch(theme);
                 }
-            } else {
-                displayNoMatch(theme);
+            } finally {
+                // Re-enable form
+                setFormEnabled(true);
             }
         }
 
