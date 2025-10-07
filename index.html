@@ -695,6 +695,17 @@
 
             // Update button text to "Search Again"
             generateBtn.textContent = 'Search Again';
+
+            // Save to localStorage for persistence across page refreshes
+            try {
+                localStorage.setItem('lastPoem', JSON.stringify({
+                    poem: poem,
+                    similarity: similarity,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                console.error('Failed to save poem to localStorage:', e);
+            }
         }
 
         function displayNoMatch(theme) {
@@ -805,8 +816,25 @@
             themeInput.select();
         });
 
-        // Show ready message on page load
+        // Restore last poem on page load (if available)
         window.addEventListener('load', () => {
+            try {
+                const lastPoemData = localStorage.getItem('lastPoem');
+                if (lastPoemData) {
+                    const { poem, similarity, timestamp } = JSON.parse(lastPoemData);
+
+                    // Only restore if less than 24 hours old
+                    const ageInHours = (Date.now() - timestamp) / (1000 * 60 * 60);
+                    if (ageInHours < 24) {
+                        displayPoem(poem, similarity);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to restore poem from localStorage:', e);
+            }
+
+            // If no saved poem or error, show ready message
             quoteContent.innerHTML = '<div class="loading">✨ Ready! Enter a theme above to discover beautiful classic poetry!</div>';
             quoteContainer.classList.add('show');
         });
