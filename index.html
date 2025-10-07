@@ -339,6 +339,7 @@
 
         // Cache for API results to avoid repeated calls
         const apiCache = {};
+        const synonymCache = {};
 
         // AI/ML variables
         let model = null;
@@ -405,8 +406,42 @@
             }
         }
 
-        function extractKeywords(phrase) {
-            // Remove common words and extract meaningful keywords
+        // Generate synonyms using Claude API via serverless function
+        async function generateSynonyms(query) {
+            // Check cache first
+            if (synonymCache[query]) {
+                console.log('📦 Using cached synonyms for:', query);
+                return synonymCache[query];
+            }
+
+            try {
+                console.log('🤖 Generating synonyms for:', query);
+                const response = await fetch('/.netlify/functions/generate-synonyms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Synonym generation failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                synonymCache[query] = data.synonyms;
+                console.log('✅ Generated synonyms:', data.synonyms);
+                return data.synonyms;
+
+            } catch (error) {
+                console.error('Synonym generation error:', error);
+                // Fallback to basic keyword extraction
+                return extractKeywordsBasic(query);
+            }
+        }
+
+        // Basic keyword extraction as fallback
+        function extractKeywordsBasic(phrase) {
             const commonWords = ['the', 'a', 'an', 'of', 'in', 'on', 'at', 'to', 'for', 'and', 'or', 'but', 'is', 'are', 'was', 'were'];
             const words = phrase.toLowerCase().trim().split(/\s+/);
             const keywords = words.filter(word =>
@@ -421,8 +456,8 @@
                 return apiCache[userInput];
             }
 
-            // Extract keywords from user input
-            const keywords = extractKeywords(userInput);
+            // Generate synonyms and related terms using Claude AI
+            const keywords = await generateSynonyms(userInput);
 
             // Try searching with individual keywords
             for (const keyword of keywords) {
