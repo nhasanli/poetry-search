@@ -530,10 +530,14 @@
             }
         }
 
-        generateBtn.addEventListener('click', generatePoem);
+        generateBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            generatePoem();
+        });
 
         themeInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
+                e.preventDefault();
                 generatePoem();
             }
         });
