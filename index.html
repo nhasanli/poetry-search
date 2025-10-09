@@ -372,26 +372,33 @@
 
         /* Info section styles */
         .info-toggle {
-            text-align: center;
-            margin-top: 15px;
+            position: absolute;
+            top: 15px;
+            right: 15px;
         }
 
         .info-button {
             background: transparent;
-            border: 1px solid #8b6340;
-            color: #6b4d2e;
-            font-family: 'Crimson Text', serif;
-            font-size: 0.9em;
-            padding: 8px 20px;
-            border-radius: 3px;
+            border: none;
+            color: #8b6340;
+            font-size: 1.4em;
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: none;
+            padding: 5px;
+            opacity: 0.6;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .info-button:hover {
+            opacity: 1;
             background: rgba(139, 99, 64, 0.1);
-            transform: none;
+            transform: scale(1.1);
         }
 
         .info-section {
@@ -586,9 +593,15 @@
                 margin-bottom: 15px;
             }
 
+            .info-toggle {
+                top: 12px;
+                right: 12px;
+            }
+
             .info-button {
-                font-size: 0.85em;
-                padding: 6px 16px;
+                font-size: 1.2em;
+                width: 28px;
+                height: 28px;
             }
 
             .info-block {
@@ -640,9 +653,15 @@
                 margin-bottom: 12px;
             }
 
+            .info-toggle {
+                top: 10px;
+                right: 10px;
+            }
+
             .info-button {
-                font-size: 0.8em;
-                padding: 5px 14px;
+                font-size: 1.1em;
+                width: 26px;
+                height: 26px;
             }
 
             .info-block {
@@ -664,10 +683,6 @@
                 font-size: 0.9em;
                 line-height: 1.4;
             }
-
-            .info-toggle {
-                margin-top: 12px;
-            }
         }
     </style>
 </head>
@@ -680,11 +695,11 @@
             <input type="text" id="theme" placeholder="love, nature, courage, death, rose...">
         </div>
 
-        <button id="generateBtn">Find Poem</button>
-
         <div class="info-toggle">
-            <button id="infoBtn" class="info-button">ℹ️ How this works</button>
+            <button id="infoBtn" class="info-button" title="How this works">?</button>
         </div>
+
+        <button id="generateBtn">Find Poem</button>
 
         <div id="infoSection" class="info-section hidden">
             <h3>How Poetry Finder Works</h3>
@@ -745,9 +760,8 @@
         infoBtn.addEventListener('click', (e) => {
             e.preventDefault();
             infoSection.classList.toggle('hidden');
-            infoBtn.textContent = infoSection.classList.contains('hidden')
-                ? 'ℹ️ How this works'
-                : '✕ Close';
+            infoBtn.textContent = infoSection.classList.contains('hidden') ? '?' : '✕';
+            infoBtn.title = infoSection.classList.contains('hidden') ? 'How this works' : 'Close';
         });
 
         // Cache for API results to avoid repeated calls
