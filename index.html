@@ -318,6 +318,30 @@
             letter-spacing: 0.5px;
         }
 
+        .share-button {
+            display: block;
+            margin: 20px auto 0;
+            background: transparent;
+            border: 1px solid #d4c4a8;
+            color: #6b4d2e;
+            font-family: 'Crimson Text', serif;
+            font-size: 0.9em;
+            padding: 8px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .share-button:hover {
+            background: rgba(139, 99, 64, 0.1);
+            border-color: #8b6340;
+            transform: translateY(-2px);
+        }
+
+        .share-button:active {
+            transform: translateY(0);
+        }
+
         .no-match {
             text-align: center;
             color: #8b3a3a;
@@ -368,6 +392,47 @@
         input:disabled {
             opacity: 0.7;
             cursor: not-allowed;
+        }
+
+        /* Suggestion chips */
+        .suggestions {
+            text-align: center;
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .suggestions-label {
+            font-size: 0.9em;
+            color: #6b4d2e;
+            font-style: italic;
+            margin-right: 5px;
+        }
+
+        .suggestion-chip {
+            background: transparent;
+            border: 1px solid #d4c4a8;
+            color: #6b4d2e;
+            font-family: 'Crimson Text', serif;
+            font-size: 0.85em;
+            padding: 5px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: none;
+        }
+
+        .suggestion-chip:hover {
+            background: rgba(139, 99, 64, 0.1);
+            border-color: #8b6340;
+            transform: translateY(-2px);
+        }
+
+        .suggestion-chip:active {
+            transform: translateY(0);
         }
 
         /* Info section styles */
@@ -617,6 +682,25 @@
                 margin-bottom: 5px;
                 font-size: 0.95em;
             }
+
+            .suggestions {
+                gap: 6px;
+                margin-top: 12px;
+            }
+
+            .suggestions-label {
+                font-size: 0.85em;
+            }
+
+            .suggestion-chip {
+                font-size: 0.8em;
+                padding: 4px 10px;
+            }
+
+            .share-button {
+                font-size: 0.85em;
+                padding: 6px 16px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -683,6 +767,27 @@
                 font-size: 0.9em;
                 line-height: 1.4;
             }
+
+            .suggestions {
+                gap: 5px;
+                margin-top: 10px;
+                font-size: 0.9em;
+            }
+
+            .suggestions-label {
+                font-size: 0.8em;
+                margin-right: 3px;
+            }
+
+            .suggestion-chip {
+                font-size: 0.75em;
+                padding: 3px 8px;
+            }
+
+            .share-button {
+                font-size: 0.8em;
+                padding: 5px 14px;
+            }
         }
     </style>
 </head>
@@ -696,10 +801,18 @@
         </div>
 
         <div class="info-toggle">
-            <button id="infoBtn" class="info-button" title="How this works">?</button>
+            <button id="infoBtn" class="info-button" title="How this works" aria-label="Show information about how this tool works">?</button>
         </div>
 
-        <button id="generateBtn">Find Poem</button>
+        <button id="generateBtn" aria-label="Search for a poem">Find Poem</button>
+
+        <div class="suggestions">
+            <span class="suggestions-label">Try:</span>
+            <button class="suggestion-chip" data-suggestion="childhood friends">childhood friends</button>
+            <button class="suggestion-chip" data-suggestion="winter solitude">winter solitude</button>
+            <button class="suggestion-chip" data-suggestion="lost love">lost love</button>
+            <button class="suggestion-chip" data-suggestion="nature's beauty">nature's beauty</button>
+        </div>
 
         <div id="infoSection" class="info-section hidden">
             <h3>How Poetry Finder Works</h3>
@@ -762,6 +875,16 @@
             infoSection.classList.toggle('hidden');
             infoBtn.textContent = infoSection.classList.contains('hidden') ? '?' : '✕';
             infoBtn.title = infoSection.classList.contains('hidden') ? 'How this works' : 'Close';
+        });
+
+        // Suggestion chip click handlers
+        document.querySelectorAll('.suggestion-chip').forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                e.preventDefault();
+                const suggestion = chip.dataset.suggestion;
+                themeInput.value = suggestion;
+                generatePoem();
+            });
         });
 
         // Cache for API results to avoid repeated calls
@@ -936,8 +1059,36 @@
                 <div class="poem-text">${poemLines}</div>
                 <div class="source-label">${poem.linecount} lines</div>
                 ${relevancyFooter}
+                <button class="share-button" id="shareBtn" aria-label="Share this poem">
+                    📋 Share
+                </button>
             `;
             quoteContainer.classList.add('show');
+
+            // Add share button functionality
+            const shareBtn = document.getElementById('shareBtn');
+            if (shareBtn) {
+                shareBtn.addEventListener('click', async () => {
+                    const searchQuery = themeInput.value.trim();
+                    const shareUrl = `${window.location.origin}${window.location.pathname}?search=${encodeURIComponent(searchQuery)}`;
+
+                    try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        shareBtn.textContent = '✓ Copied!';
+                        shareBtn.style.background = 'rgba(76, 175, 80, 0.1)';
+                        setTimeout(() => {
+                            shareBtn.textContent = '📋 Share';
+                            shareBtn.style.background = '';
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy:', err);
+                        shareBtn.textContent = '✗ Failed';
+                        setTimeout(() => {
+                            shareBtn.textContent = '📋 Share';
+                        }, 2000);
+                    }
+                });
+            }
 
             // Update button text to "Search Again"
             generateBtn.textContent = 'Search Again';
@@ -1062,8 +1213,42 @@
             themeInput.select();
         });
 
-        // Restore last poem on page load (if available)
+        // Mobile swipe gesture for next poem
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        quoteContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        quoteContainer.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+
+        function handleSwipe() {
+            const swipeThreshold = 100;
+            const swipeDistance = touchEndX - touchStartX;
+
+            // Swipe left = next poem
+            if (swipeDistance < -swipeThreshold && themeInput.value.trim()) {
+                generatePoem();
+            }
+        }
+
+        // Restore last poem on page load (if available) OR handle URL parameter
         window.addEventListener('load', () => {
+            // Check for URL parameter ?search=...
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchQuery = urlParams.get('search');
+
+            if (searchQuery) {
+                themeInput.value = searchQuery;
+                generatePoem();
+                return;
+            }
+
+            // Otherwise, try to restore from localStorage
             try {
                 const lastPoemData = localStorage.getItem('lastPoem');
                 if (lastPoemData) {
