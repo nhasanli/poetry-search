@@ -401,13 +401,7 @@
             gap: 6px;
             margin-top: 6px;
             justify-content: flex-start;
-            overflow-x: auto;
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE/Edge */
-        }
-
-        .suggestions::-webkit-scrollbar {
-            display: none; /* Chrome/Safari */
+            width: fit-content;
         }
 
         .suggestion-chip {
@@ -422,7 +416,6 @@
             transition: all 0.2s ease;
             box-shadow: none;
             white-space: nowrap;
-            flex-shrink: 0;
         }
 
         .suggestion-chip:hover {
@@ -788,11 +781,8 @@
         <div class="input-group">
             <label for="theme">Select a theme or sentiment:</label>
             <input type="text" id="theme" placeholder="love, nature, courage, death, rose...">
-            <div class="suggestions">
-                <button class="suggestion-chip" data-suggestion="childhood friends">childhood friends</button>
-                <button class="suggestion-chip" data-suggestion="winter solitude">winter solitude</button>
-                <button class="suggestion-chip" data-suggestion="lost love">lost love</button>
-                <button class="suggestion-chip" data-suggestion="nature's beauty">nature's beauty</button>
+            <div class="suggestions" id="suggestions">
+                <!-- Suggestions will be dynamically populated -->
             </div>
         </div>
 
@@ -865,15 +855,38 @@
             infoBtn.title = infoSection.classList.contains('hidden') ? 'How this works' : 'Close';
         });
 
-        // Suggestion chip click handlers
-        document.querySelectorAll('.suggestion-chip').forEach(chip => {
-            chip.addEventListener('click', (e) => {
-                e.preventDefault();
-                const suggestion = chip.dataset.suggestion;
-                themeInput.value = suggestion;
-                generatePoem();
+        // Pool of suggestion options
+        const suggestionPool = [
+            'childhood friends', 'winter solitude', 'lost love', 'nature\'s beauty',
+            'heroic sacrifice', 'autumn melancholy', 'forbidden desire', 'eternal hope',
+            'morning dew', 'twilight dreams', 'ocean vastness', 'mountain majesty',
+            'silent grief', 'joyful reunion', 'cosmic wonder', 'humble gratitude',
+            'fierce courage', 'gentle mercy', 'wild freedom', 'quiet reflection'
+        ];
+
+        // Shuffle and pick 3 random suggestions on page load
+        function populateSuggestions() {
+            const suggestionsContainer = document.getElementById('suggestions');
+            const shuffled = [...suggestionPool].sort(() => Math.random() - 0.5);
+            const selected = shuffled.slice(0, 3);
+
+            suggestionsContainer.innerHTML = selected.map(suggestion =>
+                `<button class="suggestion-chip" data-suggestion="${suggestion}">${suggestion}</button>`
+            ).join('');
+
+            // Add click handlers
+            suggestionsContainer.querySelectorAll('.suggestion-chip').forEach(chip => {
+                chip.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const suggestion = chip.dataset.suggestion;
+                    themeInput.value = suggestion;
+                    generatePoem();
+                });
             });
-        });
+        }
+
+        // Populate suggestions on load
+        populateSuggestions();
 
         // Cache for API results to avoid repeated calls
         const apiCache = {};
@@ -881,6 +894,33 @@
 
         // Track shown poems per query to avoid repetition
         const shownPoemsPerQuery = {};
+
+        // Fetch specific poem by title and author from PoetryDB
+        async function fetchSpecificPoem(title, author) {
+            try {
+                const response = await fetch(`https://poetrydb.org/title,author/${encodeURIComponent(title)};${encodeURIComponent(author)}`);
+
+                if (!response.ok) {
+                    return null;
+                }
+
+                const data = await response.json();
+
+                if (data.status === 404 || !Array.isArray(data) || data.length === 0) {
+                    return null;
+                }
+
+                return {
+                    title: data[0].title,
+                    author: data[0].author,
+                    lines: data[0].lines,
+                    linecount: data[0].linecount
+                };
+            } catch (error) {
+                console.error('Failed to fetch specific poem:', error);
+                return null;
+            }
+        }
 
         // Rank poems by thematic relevance using Claude AI
         async function rankPoemsByRelevance(query, poems) {
@@ -1058,7 +1098,8 @@
             if (shareBtn) {
                 shareBtn.addEventListener('click', async () => {
                     const searchQuery = themeInput.value.trim();
-                    const shareUrl = `${window.location.origin}${window.location.pathname}?search=${encodeURIComponent(searchQuery)}`;
+                    // Build URL with poem identifiers for direct lookup
+                    const shareUrl = `${window.location.origin}${window.location.pathname}?title=${encodeURIComponent(poem.title)}&author=${encodeURIComponent(poem.author)}&search=${encodeURIComponent(searchQuery)}`;
 
                     // Create shareable text with poem excerpt
                     const poemExcerpt = poem.lines.slice(0, 8).join('\n');
@@ -1253,11 +1294,32 @@
         }
 
         // Restore last poem on page load (if available) OR handle URL parameter
-        window.addEventListener('load', () => {
-            // Check for URL parameter ?search=...
+        window.addEventListener('load', async () => {
+            // Check for URL parameters
             const urlParams = new URLSearchParams(window.location.search);
+            const poemTitle = urlParams.get('title');
+            const poemAuthor = urlParams.get('author');
             const searchQuery = urlParams.get('search');
 
+            // If we have title and author, fetch that specific poem
+            if (poemTitle && poemAuthor) {
+                showLoading('Loading shared poem...');
+                const poem = await fetchSpecificPoem(poemTitle, poemAuthor);
+
+                if (poem) {
+                    // Set search query in input if provided
+                    if (searchQuery) {
+                        themeInput.value = searchQuery;
+                    }
+                    displayPoem(poem, null);
+                    return;
+                } else {
+                    // If specific poem not found, fall back to search
+                    console.log('Specific poem not found, falling back to search');
+                }
+            }
+
+            // If we only have search query (or fallback from above), do a search
             if (searchQuery) {
                 themeInput.value = searchQuery;
                 generatePoem();
