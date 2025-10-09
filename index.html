@@ -396,39 +396,30 @@
 
         /* Suggestion chips */
         .suggestions {
-            text-align: center;
-            margin-top: 15px;
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .suggestions-label {
-            font-size: 0.9em;
-            color: #6b4d2e;
-            font-style: italic;
-            margin-right: 5px;
+            gap: 6px;
+            margin-top: 8px;
+            justify-content: flex-start;
         }
 
         .suggestion-chip {
-            background: transparent;
+            background: rgba(139, 99, 64, 0.05);
             border: 1px solid #d4c4a8;
             color: #6b4d2e;
             font-family: 'Crimson Text', serif;
-            font-size: 0.85em;
-            padding: 5px 12px;
-            border-radius: 15px;
+            font-size: 0.8em;
+            padding: 4px 10px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: none;
         }
 
         .suggestion-chip:hover {
-            background: rgba(139, 99, 64, 0.1);
+            background: rgba(139, 99, 64, 0.12);
             border-color: #8b6340;
-            transform: translateY(-2px);
+            transform: translateY(-1px);
         }
 
         .suggestion-chip:active {
@@ -684,17 +675,13 @@
             }
 
             .suggestions {
-                gap: 6px;
-                margin-top: 12px;
-            }
-
-            .suggestions-label {
-                font-size: 0.85em;
+                gap: 5px;
+                margin-top: 6px;
             }
 
             .suggestion-chip {
-                font-size: 0.8em;
-                padding: 4px 10px;
+                font-size: 0.75em;
+                padding: 3px 8px;
             }
 
             .share-button {
@@ -769,19 +756,13 @@
             }
 
             .suggestions {
-                gap: 5px;
-                margin-top: 10px;
-                font-size: 0.9em;
-            }
-
-            .suggestions-label {
-                font-size: 0.8em;
-                margin-right: 3px;
+                gap: 4px;
+                margin-top: 5px;
             }
 
             .suggestion-chip {
-                font-size: 0.75em;
-                padding: 3px 8px;
+                font-size: 0.7em;
+                padding: 2px 7px;
             }
 
             .share-button {
@@ -798,6 +779,12 @@
         <div class="input-group">
             <label for="theme">Select a theme or sentiment:</label>
             <input type="text" id="theme" placeholder="love, nature, courage, death, rose...">
+            <div class="suggestions">
+                <button class="suggestion-chip" data-suggestion="childhood friends">childhood friends</button>
+                <button class="suggestion-chip" data-suggestion="winter solitude">winter solitude</button>
+                <button class="suggestion-chip" data-suggestion="lost love">lost love</button>
+                <button class="suggestion-chip" data-suggestion="nature's beauty">nature's beauty</button>
+            </div>
         </div>
 
         <div class="info-toggle">
@@ -805,14 +792,6 @@
         </div>
 
         <button id="generateBtn" aria-label="Search for a poem">Find Poem</button>
-
-        <div class="suggestions">
-            <span class="suggestions-label">Try:</span>
-            <button class="suggestion-chip" data-suggestion="childhood friends">childhood friends</button>
-            <button class="suggestion-chip" data-suggestion="winter solitude">winter solitude</button>
-            <button class="suggestion-chip" data-suggestion="lost love">lost love</button>
-            <button class="suggestion-chip" data-suggestion="nature's beauty">nature's beauty</button>
-        </div>
 
         <div id="infoSection" class="info-section hidden">
             <h3>How Poetry Finder Works</h3>
@@ -1072,20 +1051,48 @@
                     const searchQuery = themeInput.value.trim();
                     const shareUrl = `${window.location.origin}${window.location.pathname}?search=${encodeURIComponent(searchQuery)}`;
 
-                    try {
-                        await navigator.clipboard.writeText(shareUrl);
-                        shareBtn.textContent = '✓ Copied!';
-                        shareBtn.style.background = 'rgba(76, 175, 80, 0.1)';
-                        setTimeout(() => {
-                            shareBtn.textContent = '📋 Share';
-                            shareBtn.style.background = '';
-                        }, 2000);
-                    } catch (err) {
-                        console.error('Failed to copy:', err);
-                        shareBtn.textContent = '✗ Failed';
-                        setTimeout(() => {
-                            shareBtn.textContent = '📋 Share';
-                        }, 2000);
+                    // Create shareable text with poem excerpt
+                    const poemExcerpt = poem.lines.slice(0, 8).join('\n');
+                    const shareText = `"${poem.title}" by ${poem.author}\n\n${poemExcerpt}${poem.lines.length > 8 ? '\n...' : ''}\n\nDiscover more classical poetry at Poetry Finder`;
+
+                    // Try Web Share API first (mobile-friendly)
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({
+                                title: `${poem.title} - ${poem.author}`,
+                                text: shareText,
+                                url: shareUrl
+                            });
+                            shareBtn.textContent = '✓ Shared!';
+                            shareBtn.style.background = 'rgba(76, 175, 80, 0.1)';
+                            setTimeout(() => {
+                                shareBtn.textContent = '📋 Share';
+                                shareBtn.style.background = '';
+                            }, 2000);
+                        } catch (err) {
+                            // User cancelled share dialog
+                            if (err.name !== 'AbortError') {
+                                console.error('Share failed:', err);
+                            }
+                        }
+                    } else {
+                        // Fallback: Copy poem text + link to clipboard
+                        const clipboardText = `${shareText}\n\n${shareUrl}`;
+                        try {
+                            await navigator.clipboard.writeText(clipboardText);
+                            shareBtn.textContent = '✓ Copied!';
+                            shareBtn.style.background = 'rgba(76, 175, 80, 0.1)';
+                            setTimeout(() => {
+                                shareBtn.textContent = '📋 Share';
+                                shareBtn.style.background = '';
+                            }, 2000);
+                        } catch (err) {
+                            console.error('Failed to copy:', err);
+                            shareBtn.textContent = '✗ Failed';
+                            setTimeout(() => {
+                                shareBtn.textContent = '📋 Share';
+                            }, 2000);
+                        }
                     }
                 });
             }
