@@ -397,10 +397,17 @@
         /* Suggestion chips */
         .suggestions {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             gap: 6px;
-            margin-top: 8px;
+            margin-top: 6px;
             justify-content: flex-start;
+            overflow-x: auto;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+        }
+
+        .suggestions::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
         }
 
         .suggestion-chip {
@@ -408,12 +415,14 @@
             border: 1px solid #d4c4a8;
             color: #6b4d2e;
             font-family: 'Crimson Text', serif;
-            font-size: 0.8em;
-            padding: 4px 10px;
+            font-size: 0.75em;
+            padding: 3px 10px;
             border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: none;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .suggestion-chip:hover {
@@ -676,12 +685,12 @@
 
             .suggestions {
                 gap: 5px;
-                margin-top: 6px;
+                margin-top: 5px;
             }
 
             .suggestion-chip {
-                font-size: 0.75em;
-                padding: 3px 8px;
+                font-size: 0.7em;
+                padding: 2px 8px;
             }
 
             .share-button {
@@ -757,11 +766,11 @@
 
             .suggestions {
                 gap: 4px;
-                margin-top: 5px;
+                margin-top: 4px;
             }
 
             .suggestion-chip {
-                font-size: 0.7em;
+                font-size: 0.65em;
                 padding: 2px 7px;
             }
 
